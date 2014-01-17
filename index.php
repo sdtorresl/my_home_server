@@ -21,25 +21,79 @@ else {
 
 // Get the task to do
 switch ($function) {
- 	case 'getState':
- 		if (isset($_GET['home_id']) && isset($_GET['room_id'])) {
+ 	case 'getRoomState':
+ 		if (isset($_GET['home_id']) && isset($_GET['room_id']) && isset($_GET['home_password'])) {
 			$home_id = $_GET['home_id'];
+			$home_password = $_GET['home_password'];
 			$room_id = $_GET['room_id'];
 
-			$functions->getRoomState($home_id, $room_id);
+			$functions->getRoomState($home_id, $home_password, $room_id);
 		}
 		else {
 			$functions->returnMessage("Required field(s) is missing");
 		}
  		break;
 
- 	case 'setState':
- 		if (isset($_GET['home_id']) && isset($_GET['room_id']) && isset($_GET['state'])) {
+  	case 'getHomeLevel':
+ 		if (isset($_GET['home_id']) && isset($_GET['home_password'])) {
 			$home_id = $_GET['home_id'];
-			$room_id = $_GET['room_id'];
-			$state = $_GET['state'];
+			$home_password = $_GET['home_password'];
 
-			$functions->setRoomState($home_id, $room_id, $state);
+			$functions->getHomeLevel($home_id, $home_password);
+		}
+		else {
+			$functions->returnMessage("Required field(s) is missing");
+		}
+  		break;
+
+  	case 'setRoomLevel':
+  		if (isset($_GET['home_id']) && isset($_GET['home_password']) && isset($_GET['room_id']) && isset($_GET['level'])) {
+			$home_id = $_GET['home_id'];
+			$home_password = $_GET['home_password'];
+			$room_id = $_GET['room_id'];
+			$level = $_GET['level'];
+
+			$functions->setRoomLevel($home_id, $home_password, $room_id, $level);
+		}
+		else {
+			$functions->returnMessage("Required field(s) is missing");
+		}
+  		break;
+
+  	case 'setRoomAutomatic':
+  		if (isset($_GET['home_id']) && isset($_GET['home_password']) && isset($_GET['room_id']) && isset($_GET['automatic'])) {
+			$home_id = $_GET['home_id'];
+			$home_password = $_GET['home_password'];
+			$room_id = $_GET['room_id'];
+			$automatic = $_GET['automatic'];
+
+			$functions->setRoomAutomatic($home_id, $home_password, $room_id, $automatic);
+		}
+		else {
+			$functions->returnMessage("Required field(s) is missing");
+		}
+  		break;
+  	
+  	case 'setRoomControl':
+  		if (isset($_GET['home_id']) && isset($_GET['home_password']) && isset($_GET['room_id']) && isset($_GET['control'])) {
+			$home_id = $_GET['home_id'];
+			$home_password = $_GET['home_password'];
+			$room_id = $_GET['room_id'];
+			$control = $_GET['control'];
+
+			$functions->setRoomControl($home_id, $home_password, $room_id, $control);
+		}
+		else {
+			$functions->returnMessage("Required field(s) is missing");
+		}
+  		break;
+
+  	case 'setLightsOff':
+  		if (isset($_GET['home_id']) && isset($_GET['home_password'])) {
+			$home_id = $_GET['home_id'];
+			$home_password = $_GET['home_password'];
+
+			$functions->setLightsOff($home_id, $home_password);
 		}
 		else {
 			$functions->returnMessage("Required field(s) is missing");

@@ -19,6 +19,32 @@ class DB_Functions {
          
     }
  
+    /** 
+     * Verify that home ID and home password is correct
+     * @param $home_id
+     * @param $home_password
+     * @return boolean
+     */
+    public function verifyHomePass($home_id, $home_password) {
+        $passOK = false;
+
+        $result = mysql_query("SELECT * FROM homes AS h WHERE h.id = $home_id");
+        $no_of_rows = mysql_num_rows($result);
+        if ($no_of_rows > 0) {
+            $result = mysql_fetch_array($result);
+            if ($home_password != $result['password']) {
+                $this->returnMessage("Home password or home ID is invalid");
+            } else {
+                $passOK = true;
+            }
+        }
+        else {
+            $this->returnMessage("Home is not registered, please verify home id");
+        }
+
+        return $passOK;
+    }
+
     /**
      * Storing new user
      * @param full_name
@@ -33,18 +59,7 @@ class DB_Functions {
         // Check that user doesn't exist
         if (!$this->isUserExisted($email) && !$this->isUserExisted($username)) {
 
-            // Verify that home ID and home password is correct
-            $result = mysql_query("SELECT * FROM homes AS h WHERE h.id = $home_id");
-            $no_of_rows = mysql_num_rows($result);
-            if ($no_of_rows > 0) {
-                $result = mysql_fetch_array($result);
-                if ($home_password != $result['password']) {
-                    $this->returnMessage("Home password or home ID is invalid");
-                }
-            }
-            else {
-                $this->returnMessage("Home is not registered, please verify home id");
-            }
+            $this->verifyHomePass($home_id, $home_password);
 
             // Create user
             $unique_id = uniqid('', true);
@@ -111,6 +126,17 @@ class DB_Functions {
         $hash = base64_encode(sha1($password . $salt, true) . $salt);
         return $hash;
     }
+
+    public function validateString($str) { 
+        $str = str_replace ("ñ", "&ntilde", $str); 
+        $str = str_replace ("á", "&aacute", $str); 
+        $str = str_replace ("é", "&eacute", $str); 
+        $str = str_replace ("í", "&iacute", $str); 
+        $str = str_replace ("ó", "&oacute", $str); 
+        $str = str_replace ("ú", "&uacute", $str); 
+    
+        return $str; 
+    }
  
     /**
      * Validate a user login
@@ -145,16 +171,54 @@ class DB_Functions {
     }
 
     /**
-     * Return the state of a room
+     * Return the level of all rooms in a home
      * @param home_id
      * @param room_id
      * @return json
      */
-    public function getRoomState($home_id, $room_id) {
+    public function getHomeLevel($home_id, $home_password) {
+        
+        $this->verifyHomePass($home_id, $home_password);
+        
+        $result = mysql_query("SELECT h.id AS 'id', h.name AS 'name', r.id AS 'room_id', r.home_id AS 'home_id', r.name AS 'room_name', r.level AS 'level', r.control AS 'control', r.automatic AS 'automatic' FROM rooms AS r INNER JOIN homes AS h ON r.home_id = h.id WHERE h.id = $home_id");
+        
+        $no_of_rows = mysql_num_rows($result);
+
+        if ($no_of_rows > 0) {
+            $id = 0;
+            while ($row = mysql_fetch_array($result)) {
+                $this->response["home"]["id"] = $row["id"];
+                $this->response["home"]["name"] = $row["name"];
+                $this->response["home"]["nodes"] = $no_of_rows;
+                $this->response["home"]["room_".$id]["id"] = $row["room_id"];
+                $this->response["home"]["room_".$id]["DL"] = $id+1;
+                $this->response["home"]["room_".$id]["name"] = $this->validateString(utf8_encode($row["room_name"]));
+                $this->response["home"]["room_".$id]["level"] = $row["level"];
+                $this->response["home"]["room_".$id]["control"] = $row["control"];
+                $this->response["home"]["room_".$id]["automatic"] = $row["automatic"];
+
+                $id++;
+            }
+
+            $this->returnMessage("OK", SUCCESS);
+        } else {
+            $this->returnMessage("Room does not exist");
+        }
+    }
+
+    /**
+     * Return the level of a room
+     * @param home_id
+     * @param room_id
+     * @return json
+     */
+    public function getRoomState($home_id, $home_password, $room_id) {
+
+        $this->verifyHomePass($home_id, $home_password);
+
         $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
         $no_of_rows = mysql_num_rows($result);
         if ($no_of_rows > 0) {
-            # code...
             $result = mysql_fetch_assoc($result);
             $this->response["room"] = $result;
             $this->returnMessage("OK", SUCCESS);
@@ -164,40 +228,47 @@ class DB_Functions {
     }
 
     /**
-     * Return the state of a room
+     * Set the level of a room
      * @param home_id
+     * @param homePassword
      * @param room_id
+     * @param level
      * @return json
      */
-    public function setRoomState($home_id, $room_id, $state) {
-        // Validate the new state
+    public function setRoomLevel($home_id, $home_password, $room_id, $level) {
+
+        $this->verifyHomePass($home_id, $home_password);
+
+        // Validate the new level
         try {
-            $state = (int) $state;
-            if (!($state >= 0 && $state <= 100)) 
-                $this->returnMessage("The state must be a integer less than 100 and greater than 0");
+            $level = (int) $level;
+            if (!($level >= 0 && $level <= 100)) 
+                $this->returnMessage("The level must be a integer less than 100 and greater than 0");
         } catch (Exception $e) {
-            $this->returnMessage("State must be an integer");
+            $this->returnMessage("level must be an integer");
         }
 
         // Update the new value
-        $result = mysql_query("UPDATE rooms SET state = $state WHERE id = $room_id AND home_id = $home_id");
+        $result = mysql_query("UPDATE rooms SET level = $level WHERE id = $room_id AND home_id = $home_id");
         $no_of_rows = mysql_affected_rows();
         if ($no_of_rows > 0) {
             // Status changed, return object and message
             $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
             $result = mysql_fetch_assoc($result);
-            $this->response["room"] = $result;
-            $room_name = $result["name"];
-            $this->returnMessage("The state of the room '$room_name' is now $state", SUCCESS);
+            $this->response["room"] =  $result;
+            $room_name = $this->validateString(utf8_encode($result["name"]));
+            $this->response["room"]["name"] =  $room_name;
+            $this->returnMessage("The level of the room '$room_name' is now $level", SUCCESS);
         } 
         else {
             // Status has the same value
             $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
             $result = mysql_fetch_assoc($result);
-            if($result['state'] == $state) {
-                $room_name = $result["name"];
-                $this->response["room"] = $result;
-                $this->returnMessage("The state of the room '$room_name' is already in $state", SUCCESS);
+            if($result['level'] == $level) {
+                $this->response["room"] =  $result;
+                $room_name = $this->validateString(utf8_encode($result["name"]));
+                $this->response["room"]["name"] =  $room_name;
+                $this->returnMessage("The level of the room '$room_name' is already in $level", SUCCESS);
             }
             else {
                 // Room does not exist
@@ -207,11 +278,132 @@ class DB_Functions {
     }
 
     /**
+     * Set the automatic state of a room
+     * @param home_id
+     * @param homePassword
+     * @param room_id
+     * @param automatic
+     * @return json
+     */
+    public function setRoomAutomatic($home_id, $home_password, $room_id, $automatic) {
+
+        $this->verifyHomePass($home_id, $home_password);
+
+        // Validate the new value of automatic
+        if ($automatic) {
+            $automatic = 1;
+        }
+        else {
+            $automatic = 0;
+        }
+
+        // Update the new value
+        $result = mysql_query("UPDATE rooms SET automatic = $automatic WHERE id = $room_id AND home_id = $home_id");
+        $no_of_rows = mysql_affected_rows();
+        if ($no_of_rows > 0) {
+            // Status changed, return object and message
+            $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
+            $result = mysql_fetch_assoc($result);
+            $this->response["room"] = $result;
+            $room_name = $result["name"];
+            $this->returnMessage("The automatic state of the room '$room_name' is now $automatic", SUCCESS);
+        } 
+        else {
+            // Status has the same value
+            $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
+            $result = mysql_fetch_assoc($result);
+            if($result['automatic'] == $automatic) {
+                $room_name = $result["name"];
+                $this->response["room"] = $result;
+                $this->returnMessage("The automatic state of the room '$room_name' is already in $automatic", SUCCESS);
+            }
+            else {
+                // Room does not exist
+                $this->returnMessage("Room does not exist");
+            }
+        }
+    }
+
+    /**
+     * Set the control state of a room
+     * @param home_id
+     * @param homePassword
+     * @param room_id
+     * @param control
+     * @return json
+     */
+    public function setRoomControl($home_id, $home_password, $room_id, $control) {
+
+        $this->verifyHomePass($home_id, $home_password);
+
+        // Validate the new value of control
+        if ($control) {
+            $control = 1;
+        }
+        else {
+            $control = 0;
+        }
+
+        // Update the new value
+        $result = mysql_query("UPDATE rooms SET control = $control WHERE id = $room_id AND home_id = $home_id");
+        $no_of_rows = mysql_affected_rows();
+        if ($no_of_rows > 0) {
+            // Status changed, return object and message
+            $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
+            $result = mysql_fetch_assoc($result);
+            $this->response["room"] = $result;
+            $room_name = $result["name"];
+            $this->returnMessage("The control state of the room '$room_name' is now $control", SUCCESS);
+        } 
+        else {
+            // Status has the same value
+            $result = mysql_query("SELECT * FROM rooms WHERE id = $room_id AND home_id = $home_id");
+            $result = mysql_fetch_assoc($result);
+            if($result['control'] == $control) {
+                $room_name = $result["name"];
+                $this->response["room"] = $result;
+                $this->returnMessage("The control state of the room '$room_name' is already in $control", SUCCESS);
+            }
+            else {
+                // Room does not exist
+                $this->returnMessage("Room does not exist");
+            }
+        }
+    }
+
+    /**
+     * Turn off all lights of the house
+     * @param home_id
+     * @param homePassword
+     * @return json
+     */
+    public function setLightsOff($home_id, $home_password) {
+
+        $this->verifyHomePass($home_id, $home_password);
+
+        // Update the new value
+        $result = mysql_query("UPDATE rooms SET level = 100 WHERE home_id = $home_id");
+        $no_of_rows = mysql_affected_rows();
+        if ($no_of_rows > 0) {
+            // Status changed, return object and message
+            $this->returnMessage("$no_of_rows lights were turned off", SUCCESS);
+        } 
+        else {
+            // Any light was turned off
+            $this->returnMessage("No light was turned off");
+        }
+    }
+    /**
      * Give a json object with results
      * @param msg
      * @param success
      */
     public function returnMessage($msg, $success=ERROR) {
+        if ($success) 
+            $success = true;
+        else
+            $success = false;
+
         $this->response["success"] = $success;
         $this->response["message"] = $msg;    
         echo json_encode($this->response);
