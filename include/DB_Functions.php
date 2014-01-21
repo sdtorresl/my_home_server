@@ -187,15 +187,15 @@ class DB_Functions {
         if ($no_of_rows > 0) {
             $id = 0;
             while ($row = mysql_fetch_array($result)) {
-                $this->response["home"]["id"] = $row["id"];
+                $this->response["home"]["id"] = (int) $row["id"];
                 $this->response["home"]["name"] = $row["name"];
                 $this->response["home"]["nodes"] = $no_of_rows;
-                $this->response["home"]["room_".$id]["id"] = $row["room_id"];
+                $this->response["home"]["room_".$id]["id"] = (int) $row["room_id"];
                 $this->response["home"]["room_".$id]["DL"] = $id+1;
                 $this->response["home"]["room_".$id]["name"] = $this->validateString(utf8_encode($row["room_name"]));
-                $this->response["home"]["room_".$id]["level"] = $row["level"];
-                $this->response["home"]["room_".$id]["control"] = $row["control"];
-                $this->response["home"]["room_".$id]["automatic"] = $row["automatic"];
+                $this->response["home"]["room_".$id]["level"] = (int) $row["level"];
+                $this->response["home"]["room_".$id]["control"] = (bool) $row["control"];
+                $this->response["home"]["room_".$id]["automatic"] = (bool) $row["automatic"];
 
                 $id++;
             }
