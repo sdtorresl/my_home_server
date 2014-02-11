@@ -382,7 +382,7 @@ class DB_Functions {
         $this->verifyHomePass($home_id, $home_password);
 
         // Update the new value
-        $result = mysql_query("UPDATE rooms SET level = 100 WHERE home_id = $home_id");
+        $result = mysql_query("UPDATE rooms SET level = 0 WHERE home_id = $home_id");
         $no_of_rows = mysql_affected_rows();
         if ($no_of_rows > 0) {
             // Status changed, return object and message
